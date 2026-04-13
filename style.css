@@ -28,6 +28,7 @@ body {
    Header
 ───────────────────────────────────────── */
 .site-header {
+  position: relative;   /* anchor for the RTL toggle button */
   text-align: center;
   padding: 48px 0 24px;
   border-bottom: 3px solid #ff003b;
@@ -55,32 +56,70 @@ body {
   letter-spacing: 0.06em;
 }
 
+/* RTL toggle button — top-right corner of the header */
+.rtl-toggle {
+  position: absolute;
+  top: 16px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #888;
+  background: none;
+  border: 1.5px solid #ddd;
+  border-radius: 6px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.rtl-toggle:hover {
+  color: #ff003b;
+  border-color: #ff003b;
+}
+
+/* Active state — when RTL mode is ON */
+.rtl-toggle.active {
+  color: #fff;
+  background: #ff003b;
+  border-color: #ff003b;
+}
+
 /* ─────────────────────────────────────────
-   Category filter
+   Category filter + product search row
 ───────────────────────────────────────── */
 .search-section {
+  display: flex;
+  gap: 12px;
   margin-bottom: 32px;
 }
 
+/* Category dropdown wrapper */
 .select-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  flex: 1;
 }
 
 .select-icon {
   position: absolute;
   left: 16px;
   color: #ff003b;
-  font-size: 16px;
+  font-size: 15px;
   pointer-events: none;
+  z-index: 1;
 }
 
 .search-section select {
   width: 100%;
-  padding: 14px 16px 14px 44px;
+  padding: 13px 16px 13px 44px;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   border: 2px solid #ddd;
   border-radius: 8px;
@@ -94,6 +133,46 @@ body {
 .search-section select:focus {
   border-color: #ff003b;
   outline: none;
+}
+
+/* Product search input wrapper */
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.search-input-icon {
+  position: absolute;
+  left: 14px;
+  color: #bbb;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1;
+  transition: color 0.2s;
+}
+
+.search-input-wrapper input {
+  width: 100%;
+  padding: 13px 16px 13px 40px;
+  font-family: inherit;
+  font-size: 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+
+.search-input-wrapper input:hover,
+.search-input-wrapper input:focus {
+  border-color: #e3a535;
+  outline: none;
+}
+
+.search-input-wrapper input:focus + .search-input-icon,
+.search-input-wrapper:focus-within .search-input-icon {
+  color: #e3a535;
 }
 
 /* ─────────────────────────────────────────
@@ -112,7 +191,7 @@ body {
   text-align: center;
   padding: 60px 20px;
   color: #aaa;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 300;
   letter-spacing: 0.02em;
 }
@@ -128,7 +207,7 @@ body {
   display: flex;
   flex-direction: column;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  min-height: 180px;
+  min-height: 160px;
 }
 
 .product-card:hover {
@@ -136,7 +215,7 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.09);
 }
 
-/* Card inner layout: image left, info right */
+/* Card inner: image on left, info on right */
 .card-inner {
   display: flex;
   gap: 14px;
@@ -145,8 +224,8 @@ body {
 }
 
 .product-card img {
-  width: 100px;
-  height: 100px;
+  width: 95px;
+  height: 95px;
   object-fit: contain;
   flex-shrink: 0;
   align-self: center;
@@ -157,28 +236,28 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .product-info h3 {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.35;
   color: #111;
 }
 
 .brand-name {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   color: #e3a535;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .desc-hint {
   font-size: 11px;
-  color: #bbb;
-  margin-top: 6px;
+  color: #ccc;
+  margin-top: 4px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -188,18 +267,19 @@ body {
 .product-desc-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(10, 10, 10, 0.90);
-  color: #f5f5f5;
+  background: rgba(10, 10, 10, 0.91);
+  color: #f0f0f0;
   padding: 16px;
-  font-size: 12.5px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.65;
   display: flex;
   align-items: center;
   border-radius: 8px;
   opacity: 0;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.22s ease;
   pointer-events: none;
   z-index: 5;
+  overflow-y: auto;
 }
 
 .product-card:hover .product-desc-overlay {
@@ -212,24 +292,24 @@ body {
   background: #fff7f8;
 }
 
-/* Check badge */
+/* Check badge: animates in when card is selected */
 .selected-badge {
   position: absolute;
   top: 10px;
   right: 10px;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   background: #ff003b;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   z-index: 10;
   opacity: 0;
   transform: scale(0.4);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 .product-card.selected .selected-badge {
@@ -244,7 +324,7 @@ body {
   background: #fff;
   border: 2px solid #e8e8e8;
   border-radius: 12px;
-  padding: 24px;
+  padding: 22px;
   margin-bottom: 36px;
 }
 
@@ -252,15 +332,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .selected-header h2 {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
 }
 
 .selected-header h2 i {
@@ -274,24 +354,24 @@ body {
   justify-content: center;
   background: #ff003b;
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  min-width: 22px;
-  height: 22px;
-  border-radius: 11px;
-  padding: 0 6px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  padding: 0 5px;
 }
 
 /* Clear All button */
 .clear-btn {
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  color: #888;
+  color: #999;
   background: none;
-  border: 1px solid #ddd;
+  border: 1px solid #e0e0e0;
   border-radius: 6px;
-  padding: 7px 14px;
+  padding: 6px 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -306,11 +386,11 @@ body {
 
 /* Empty state */
 .no-selection {
-  font-size: 14px;
+  font-size: 13px;
   color: #bbb;
   font-weight: 300;
   text-align: center;
-  padding: 16px 0;
+  padding: 12px 0;
 }
 
 /* Selected product chips */
@@ -324,20 +404,20 @@ body {
 .selected-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px 6px 8px;
+  gap: 7px;
+  padding: 5px 9px 5px 7px;
   background: #fffbf2;
   border: 1.5px solid #e3a535;
   border-radius: 24px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #333;
-  max-width: 240px;
+  max-width: 230px;
 }
 
 .chip-img {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
   border-radius: 4px;
   flex-shrink: 0;
@@ -353,12 +433,12 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  color: #bbb;
-  font-size: 13px;
+  color: #ccc;
+  font-size: 12px;
   padding: 0;
   line-height: 1;
   flex-shrink: 0;
-  transition: color 0.2s;
+  transition: color 0.18s;
 }
 
 .remove-chip:hover {
@@ -368,19 +448,19 @@ body {
 /* Generate Routine button */
 .generate-btn {
   width: 100%;
-  margin-top: 22px;
-  padding: 16px;
+  margin-top: 20px;
+  padding: 15px;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: #fff;
   background: #ff003b;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.25s ease, transform 0.1s ease;
+  transition: background 0.22s ease, transform 0.1s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -412,81 +492,81 @@ body {
   margin-bottom: 48px;
 }
 
-/* Chatbox header bar */
+/* Header bar */
 .chatbox-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px 22px;
+  padding: 14px 20px;
   background: linear-gradient(135deg, #111 0%, #2a2a2a 100%);
   color: #fff;
 }
 
 .advisor-avatar {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   background: #ff003b;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
-.chatbox-header h2 {
-  font-size: 16px;
+.advisor-info h2 {
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .advisor-status {
-  font-size: 12px;
-  color: #aaa;
+  font-size: 11px;
+  color: #999;
   margin-top: 2px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .status-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   background: #4caf50;
   border-radius: 50%;
 }
 
 /* Chat window */
 .chat-window {
-  padding: 20px 22px;
-  height: 320px;
+  padding: 20px 20px 10px;
+  height: 340px;
   overflow-y: auto;
   background: #fafafa;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   scroll-behavior: smooth;
 }
 
-/* Message label above AI bubble */
+/* Label above AI bubble */
 .msg-label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   color: #e3a535;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  margin-top: 12px;
+  margin-top: 10px;
   align-self: flex-start;
 }
 
 /* Chat bubbles */
 .msg {
-  max-width: 78%;
-  padding: 12px 16px;
+  max-width: 76%;
+  padding: 11px 15px;
   border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.65;
   white-space: pre-wrap;
 }
 
@@ -501,34 +581,70 @@ body {
   align-self: flex-start;
   background: #fff;
   color: #222;
-  border: 1.5px solid #ececec;
+  border: 1.5px solid #eee;
   border-bottom-left-radius: 4px;
 }
 
 /* Thinking / loading state */
 .msg.thinking {
-  color: #aaa;
+  color: #bbb;
   font-style: italic;
 }
 
-/* Thinking dots animation */
-@keyframes blink {
-  0%, 80%, 100% { opacity: 0; }
-  40%            { opacity: 1; }
+/* Web search indicator shown when a response includes citations */
+.web-search-indicator {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #e3a535;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 4px;
 }
 
-.thinking-dots span {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  background: #ccc;
-  border-radius: 50%;
-  margin: 0 2px;
-  animation: blink 1.4s infinite;
+/* Citations list below a web-search AI bubble */
+.citation-list {
+  align-self: flex-start;
+  max-width: 76%;
+  margin-top: 4px;
+  margin-bottom: 6px;
+  padding: 10px 14px;
+  background: #fffbf2;
+  border: 1px solid #f0dfa0;
+  border-radius: 10px;
+  font-size: 12px;
 }
 
-.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+.citation-list p {
+  font-weight: 700;
+  color: #b88000;
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.citation-list ol {
+  padding-left: 16px;
+}
+
+.citation-list li {
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+
+.citation-list a {
+  color: #cc8800;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.citation-list a:hover {
+  text-decoration: underline;
+}
 
 /* Chat input row */
 .chat-form {
@@ -540,12 +656,13 @@ body {
 
 .chat-form input {
   flex: 1;
-  padding: 16px 18px;
+  padding: 15px 16px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 14px;
   border: none;
   background: transparent;
   color: #222;
+  min-width: 0;
 }
 
 .chat-form input::placeholder {
@@ -556,23 +673,49 @@ body {
   outline: none;
 }
 
-.chat-form button {
-  font-size: 16px;
+/* Web search toggle button */
+.web-search-btn {
+  font-size: 15px;
+  background: none;
+  border: none;
+  border-left: 1.5px solid #ececec;
+  color: #ccc;
+  padding: 0 16px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.web-search-btn:hover {
+  color: #e3a535;
+}
+
+/* Active state: web search is ON */
+.web-search-btn.active {
+  color: #e3a535;
+  background: #fffbf2;
+}
+
+/* Send button */
+.chat-form button[type="submit"] {
+  font-size: 15px;
   background: #ff003b;
   color: #fff;
   border: none;
-  padding: 16px 20px;
+  padding: 15px 18px;
   cursor: pointer;
   transition: background 0.2s;
   flex-shrink: 0;
 }
 
-.chat-form button:hover {
+.chat-form button[type="submit"]:hover {
   background: #cc0030;
 }
 
-.chat-form button:disabled {
-  background: #ccc;
+.chat-form button[type="submit"]:disabled,
+.web-search-btn:disabled {
+  background: #f5f5f5;
+  color: #ccc;
   cursor: not-allowed;
 }
 
@@ -617,9 +760,132 @@ body {
 }
 
 /* ─────────────────────────────────────────
+   RTL overrides — applied when <html dir="rtl">
+   In RTL: flex-start = right edge, flex-end = left edge.
+   We swap values to keep the visual layout intact
+   (user bubbles right, AI bubbles left) while
+   reversing all other flex rows so content flows
+   right-to-left as expected.
+───────────────────────────────────────── */
+
+/* Keep the RTL toggle button on the left in RTL mode */
+[dir="rtl"] .rtl-toggle {
+  right: auto;
+  left: 0;
+}
+
+/* Reverse the two-column search row */
+[dir="rtl"] .search-section {
+  flex-direction: row-reverse;
+}
+
+/* Move the category icon to the right side of the dropdown */
+[dir="rtl"] .select-icon {
+  left: auto;
+  right: 16px;
+}
+
+[dir="rtl"] .search-section select {
+  padding: 13px 44px 13px 16px;
+}
+
+/* Move the search icon to the right side of the input */
+[dir="rtl"] .search-input-icon {
+  left: auto;
+  right: 14px;
+}
+
+[dir="rtl"] .search-input-wrapper input {
+  padding: 13px 40px 13px 16px;
+}
+
+/* Flip card inner: image moves to the right, text to the left */
+[dir="rtl"] .card-inner {
+  flex-direction: row-reverse;
+}
+
+/* Right-align product text */
+[dir="rtl"] .product-info {
+  text-align: right;
+}
+
+/* desc-hint arrow aligns right */
+[dir="rtl"] .desc-hint {
+  flex-direction: row-reverse;
+}
+
+/* Move the selected-badge check to the left */
+[dir="rtl"] .selected-badge {
+  right: auto;
+  left: 10px;
+}
+
+/* Reverse selected products header */
+[dir="rtl"] .selected-header {
+  flex-direction: row-reverse;
+}
+
+/* Reverse chip content */
+[dir="rtl"] .selected-chip {
+  flex-direction: row-reverse;
+}
+
+/* Reverse chatbox header (avatar moves to right) */
+[dir="rtl"] .chatbox-header {
+  flex-direction: row-reverse;
+}
+
+/* Reverse the online status row */
+[dir="rtl"] .advisor-status {
+  flex-direction: row-reverse;
+}
+
+/* ── RTL chat bubbles ──
+   In RTL flex-start is the right edge, flex-end is the left edge.
+   We swap align-self so the visual positions remain the same:
+   user messages stay on the right, AI messages on the left. */
+[dir="rtl"] .msg.user {
+  align-self: flex-start;   /* flex-start = right edge in RTL */
+  border-bottom-right-radius: 16px;
+  border-bottom-left-radius: 4px;
+}
+
+[dir="rtl"] .msg.ai {
+  align-self: flex-end;     /* flex-end = left edge in RTL */
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 4px;
+}
+
+[dir="rtl"] .msg-label {
+  align-self: flex-end;     /* stays on the left (flex-end in RTL) */
+}
+
+[dir="rtl"] .web-search-indicator {
+  align-self: flex-end;
+}
+
+[dir="rtl"] .citation-list {
+  align-self: flex-end;
+}
+
+/* Reverse the chat input row */
+[dir="rtl"] .chat-form {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .web-search-btn {
+  border-left: none;
+  border-right: 1.5px solid #ececec;
+}
+
+/* ─────────────────────────────────────────
    Responsive
 ───────────────────────────────────────── */
 @media (max-width: 600px) {
+  .search-section {
+    flex-direction: column;
+  }
+
   .products-grid {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
@@ -629,11 +895,16 @@ body {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    padding: 12px;
+  }
+
+  [dir="rtl"] .card-inner {
+    flex-direction: column;
   }
 
   .product-card img {
-    width: 80px;
-    height: 80px;
+    width: 75px;
+    height: 75px;
   }
 
   .msg {

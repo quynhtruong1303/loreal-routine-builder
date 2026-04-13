@@ -20,13 +20,20 @@
 
       <!-- Header / Branding -->
       <header class="site-header">
+        <!-- RTL toggle — switches the page layout to right-to-left mode -->
+        <button id="rtlToggle" class="rtl-toggle" title="Toggle RTL layout" aria-label="Toggle right-to-left layout">
+          <i class="fa-solid fa-right-left"></i>
+          <span>RTL</span>
+        </button>
+
         <img src="img/loreal-logo.png" alt="L'Oréal Logo" class="logo" />
         <h1 class="site-title">Smart Routine &amp; Product Advisor</h1>
         <p class="site-subtitle">Discover. Select. Build your perfect routine.</p>
       </header>
 
-      <!-- Category Filter -->
+      <!-- Category Filter + Product Search -->
       <div class="search-section">
+        <!-- Category dropdown -->
         <div class="select-wrapper">
           <i class="fa-solid fa-layer-group select-icon"></i>
           <select id="categoryFilter">
@@ -42,6 +49,18 @@
             <option value="suncare">Suncare</option>
             <option value="fragrance">Fragrance</option>
           </select>
+        </div>
+
+        <!-- Keyword search — filters products by name or brand as you type -->
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass search-input-icon"></i>
+          <input
+            id="productSearch"
+            type="search"
+            placeholder="Search by name or keyword…"
+            autocomplete="off"
+            aria-label="Search products"
+          />
         </div>
       </div>
 
@@ -72,12 +91,16 @@
           <div class="advisor-avatar">
             <i class="fa-solid fa-face-smile-wink"></i>
           </div>
-          <div>
+          <div class="advisor-info">
             <h2>L'Oréal Beauty Advisor</h2>
-            <p class="advisor-status"><span class="status-dot"></span> Online</p>
+            <p class="advisor-status">
+              <span class="status-dot"></span> Online
+            </p>
           </div>
         </div>
+
         <div id="chatWindow" class="chat-window"></div>
+
         <form id="chatForm" class="chat-form">
           <label for="userInput" class="visually-hidden">Message</label>
           <input
@@ -88,6 +111,19 @@
             autocomplete="off"
             required
           />
+
+          <!-- Web Search toggle — when ON, responses include live web results -->
+          <button
+            type="button"
+            id="webSearchBtn"
+            class="web-search-btn"
+            title="Web Search: OFF"
+            aria-label="Toggle web search"
+            aria-pressed="false"
+          >
+            <i class="fa-solid fa-globe"></i>
+          </button>
+
           <button type="submit" id="sendBtn" aria-label="Send message">
             <i class="fa-solid fa-paper-plane"></i>
           </button>

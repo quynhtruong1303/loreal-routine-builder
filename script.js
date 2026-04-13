@@ -3,39 +3,46 @@
 ───────────────────────────────────────── */
 
 /* ── DOM references ── */
-const categoryFilter      = document.getElementById("categoryFilter");
-const productsContainer   = document.getElementById("productsContainer");
+const categoryFilter       = document.getElementById("categoryFilter");
+const productSearchInput   = document.getElementById("productSearch");
+const productsContainer    = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
-const selectedCount       = document.getElementById("selectedCount");
-const generateBtn         = document.getElementById("generateRoutine");
-const clearAllBtn         = document.getElementById("clearAll");
-const chatForm            = document.getElementById("chatForm");
-const userInput           = document.getElementById("userInput");
-const chatWindow          = document.getElementById("chatWindow");
-const sendBtn             = document.getElementById("sendBtn");
+const selectedCount        = document.getElementById("selectedCount");
+const generateBtn          = document.getElementById("generateRoutine");
+const clearAllBtn          = document.getElementById("clearAll");
+const chatForm             = document.getElementById("chatForm");
+const userInput            = document.getElementById("userInput");
+const chatWindow           = document.getElementById("chatWindow");
+const sendBtn              = document.getElementById("sendBtn");
+const webSearchBtn         = document.getElementById("webSearchBtn");
+const rtlToggle            = document.getElementById("rtlToggle");
 
 /* ── Cloudflare Worker endpoint ──
-   Requests are routed through a Cloudflare Worker so the OpenAI API
-   key is never exposed in the browser.
+   All AI requests are routed here so the OpenAI API key
+   is never exposed in the browser.
+   The updated worker (worker-web-search.js) must be deployed
+   at this URL for web search responses to work.
 */
 const CLOUDFLARE_WORKER_URL = "https://loreal-chatbot.quynhtruong1303.workers.dev/";
 
 /* ── State ── */
-let allProducts = [];          // full product list loaded from products.json
-let selectedIds = new Set();   // IDs of currently selected products
-let conversationHistory = [];  // full message history sent to the API each turn
-let routineGenerated = false;  // true once the first routine has been generated
+let allProducts       = [];      // full product list from products.json
+let selectedIds       = new Set(); // IDs of currently selected products
+let currentCategory   = "";      // active category filter ("" = none)
+let searchQuery       = "";      // active keyword search query
+let conversationHistory = [];    // messages sent to the API each turn
+let webSearchEnabled  = false;   // true when the globe toggle is ON
+let searchDebounceTimer = null;  // timer ID for search input debounce
 
-/* ── System prompt sent as the first message in every conversation ── */
+/* ── System prompt ── */
 const SYSTEM_PROMPT = `You are a friendly, knowledgeable L'Oréal Beauty Advisor.
-Your role is to help users build personalised skincare, haircare, makeup, and
-fragrance routines using L'Oréal-family products (CeraVe, La Roche-Posay,
-L'Oréal Paris, Garnier, Lancôme, Kérastase, Maybelline, etc.).
+Help users build personalised skincare, haircare, makeup, and fragrance routines
+using L'Oréal-family products (CeraVe, La Roche-Posay, L'Oréal Paris, Garnier,
+Lancôme, Kérastase, Maybelline, etc.).
 
 Guidelines:
-- Only answer questions related to beauty: skincare, haircare, makeup, fragrance,
-  ingredients, and product routines. If a user asks about something completely
-  unrelated (politics, sports, coding, etc.), politely decline and redirect them.
+- Only answer questions about beauty: skincare, haircare, makeup, fragrance,
+  ingredients, and routines. Politely decline unrelated topics.
 - Be warm, encouraging, and inclusive — beauty is for everyone.
 - Keep responses concise (2–4 sentences) unless a detailed routine is requested.
 - When generating a routine from selected products, provide clear step-by-step
@@ -45,12 +52,10 @@ Guidelines:
    LocalStorage helpers
 ───────────────────────────────────────── */
 
-/* Save the current set of selected product IDs to localStorage */
 function saveToStorage() {
   localStorage.setItem("lorealSelectedIds", JSON.stringify([...selectedIds]));
 }
 
-/* Restore selected IDs from localStorage on page load */
 function loadFromStorage() {
   const saved = localStorage.getItem("lorealSelectedIds");
   if (saved) {
@@ -59,26 +64,62 @@ function loadFromStorage() {
 }
 
 /* ─────────────────────────────────────────
-   Load & display products
+   Load products from JSON
 ───────────────────────────────────────── */
 
-/* Fetch product data from products.json */
 async function loadProducts() {
   const response = await fetch("products.json");
   const data = await response.json();
   allProducts = data.products;
 }
 
-/* Build and inject product card HTML for the given array of products */
-function displayProducts(products) {
-  if (products.length === 0) {
+/* ─────────────────────────────────────────
+   Filter & display products
+   Applies both the category filter and the keyword search.
+   Either filter can be active independently or together.
+───────────────────────────────────────── */
+
+function applyFilters() {
+  /* If neither filter is active, show the initial placeholder */
+  if (!currentCategory && !searchQuery) {
     productsContainer.innerHTML = `
-      <div class="placeholder-message">No products found in this category.</div>
+      <div class="placeholder-message">
+        <i class="fa-solid fa-layer-group" style="margin-right:8px;color:#e3a535;"></i>
+        Choose a category or type a keyword to browse products
+      </div>
     `;
     return;
   }
 
-  /* Map each product to a card HTML string, then join and set innerHTML */
+  let filtered = allProducts;
+
+  /* Step 1 — narrow by category (if one is selected) */
+  if (currentCategory) {
+    filtered = filtered.filter(p => p.category === currentCategory);
+  }
+
+  /* Step 2 — narrow further by keyword (matches name, brand, or description) */
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    filtered = filtered.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.brand.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q)
+    );
+  }
+
+  displayProducts(filtered);
+}
+
+/* Build and inject product card HTML */
+function displayProducts(products) {
+  if (products.length === 0) {
+    productsContainer.innerHTML = `
+      <div class="placeholder-message">No products match your search.</div>
+    `;
+    return;
+  }
+
   productsContainer.innerHTML = products.map(product => {
     const isSelected = selectedIds.has(product.id);
     return `
@@ -89,15 +130,13 @@ function displayProducts(products) {
             <p class="brand-name">${product.brand}</p>
             <h3>${product.name}</h3>
             <p class="desc-hint">
-              <i class="fa-solid fa-eye"></i> Hover to see description
+              <i class="fa-solid fa-eye"></i> Hover for description
             </p>
           </div>
         </div>
-        <!-- Overlay shown on hover — reveals the product description -->
         <div class="product-desc-overlay">
           <p>${product.description}</p>
         </div>
-        <!-- Check mark badge shown when this product is selected -->
         <div class="selected-badge">
           <i class="fa-solid fa-check"></i>
         </div>
@@ -110,7 +149,6 @@ function displayProducts(products) {
    Product selection
 ───────────────────────────────────────── */
 
-/* Toggle a product in/out of the selected set */
 function toggleSelect(productId) {
   if (selectedIds.has(productId)) {
     selectedIds.delete(productId);
@@ -118,11 +156,10 @@ function toggleSelect(productId) {
     selectedIds.add(productId);
   }
 
-  /* Persist immediately so a refresh retains the list */
   saveToStorage();
   renderSelectedList();
 
-  /* Update the visual state of the card in the grid (if still visible) */
+  /* Update the card's visual state in the grid */
   const card = productsContainer.querySelector(`[data-id="${productId}"]`);
   if (card) {
     card.classList.toggle("selected", selectedIds.has(productId));
@@ -133,12 +170,9 @@ function toggleSelect(productId) {
    Render selected products panel
 ───────────────────────────────────────── */
 
-/* Re-render the chips list and update the counter badge */
 function renderSelectedList() {
-  /* Update the count badge in the section heading */
   selectedCount.textContent = selectedIds.size;
 
-  /* Get full product objects for all selected IDs */
   const selected = allProducts.filter(p => selectedIds.has(p.id));
 
   if (selected.length === 0) {
@@ -150,7 +184,6 @@ function renderSelectedList() {
     return;
   }
 
-  /* Render one chip per selected product */
   selectedProductsList.innerHTML = selected.map(p => `
     <div class="selected-chip" data-id="${p.id}">
       <img src="${p.image}" alt="${p.name}" class="chip-img">
@@ -166,11 +199,9 @@ function renderSelectedList() {
    Chat helpers
 ───────────────────────────────────────── */
 
-/* Append a message bubble to the chat window.
-   role: "user" | "ai"
-   Returns the created bubble element so callers can update it (e.g. replace "Thinking…"). */
+/* Append a message bubble (and optional advisor label) to the chat window.
+   Returns the bubble element so callers can update it later (e.g. replace "Thinking…"). */
 function appendMessage(role, text) {
-  /* Add a label above every AI response */
   if (role === "ai") {
     const label = document.createElement("div");
     label.className = "msg-label";
@@ -182,17 +213,78 @@ function appendMessage(role, text) {
   bubble.className = `msg ${role}`;
   bubble.textContent = text;
   chatWindow.appendChild(bubble);
-
-  /* Auto-scroll to the newest message */
   chatWindow.scrollTop = chatWindow.scrollHeight;
   return bubble;
 }
 
-/* Disable / enable interactive controls while waiting for a response */
+/* Append a "Sources" citation block below an AI bubble when web search is on.
+   citations: array of { url, title } objects */
+function appendCitations(citations) {
+  if (!citations || citations.length === 0) return;
+
+  /* Web-search indicator label */
+  const indicator = document.createElement("div");
+  indicator.className = "web-search-indicator";
+  indicator.innerHTML = `<i class="fa-solid fa-globe"></i> Web Search`;
+  chatWindow.appendChild(indicator);
+
+  /* Numbered source list */
+  const box = document.createElement("div");
+  box.className = "citation-list";
+
+  const heading = document.createElement("p");
+  heading.textContent = "Sources";
+  box.appendChild(heading);
+
+  const ol = document.createElement("ol");
+  citations.forEach(c => {
+    const li = document.createElement("li");
+    const a  = document.createElement("a");
+    a.href        = c.url;
+    a.textContent = c.title || c.url;
+    a.target      = "_blank";
+    a.rel         = "noopener noreferrer";
+    li.appendChild(a);
+    ol.appendChild(li);
+  });
+  box.appendChild(ol);
+  chatWindow.appendChild(box);
+
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+/* Parse an OpenAI API response object.
+   Handles both plain gpt-4o and gpt-4o-search-preview responses.
+   Returns { text, citations } where citations may be an empty array. */
+function parseApiResponse(data) {
+  const message = data.choices[0].message;
+
+  /* content is always a string in chat completions responses */
+  const text = message.content || "";
+
+  /* Annotations are present when gpt-4o-search-preview is used */
+  const annotations = message.annotations || [];
+
+  /* Extract unique URL citations */
+  const seen = new Set();
+  const citations = annotations
+    .filter(a => a.type === "url_citation")
+    .map(a => ({ url: a.url_citation.url, title: a.url_citation.title || a.url_citation.url }))
+    .filter(c => {
+      if (seen.has(c.url)) return false;
+      seen.add(c.url);
+      return true;
+    });
+
+  return { text, citations };
+}
+
+/* Disable / enable interactive controls while waiting for an API response */
 function setLoading(isLoading) {
-  sendBtn.disabled     = isLoading;
-  generateBtn.disabled = isLoading;
-  userInput.disabled   = isLoading;
+  sendBtn.disabled      = isLoading;
+  generateBtn.disabled  = isLoading;
+  userInput.disabled    = isLoading;
+  webSearchBtn.disabled = isLoading;
 }
 
 /* ─────────────────────────────────────────
@@ -200,7 +292,6 @@ function setLoading(isLoading) {
 ───────────────────────────────────────── */
 
 async function generateRoutine() {
-  /* Collect the full product objects for everything selected */
   const selected = allProducts.filter(p => selectedIds.has(p.id));
 
   if (selected.length === 0) {
@@ -208,28 +299,24 @@ async function generateRoutine() {
     return;
   }
 
-  /* Build a readable product list to include in the prompt */
+  /* Build a product description list to include in the prompt */
   const productList = selected.map(p =>
     `• ${p.name} by ${p.brand} (${p.category}): ${p.description}`
   ).join("\n");
 
-  /* The actual instruction sent to the model */
   const routinePrompt =
-    `Please create a personalised beauty routine using the following selected products:\n\n` +
+    `Please create a personalised beauty routine using these selected products:\n\n` +
     productList +
-    `\n\nProvide clear step-by-step morning and/or evening instructions as appropriate for these product types.`;
+    `\n\nProvide clear step-by-step morning and/or evening instructions as appropriate.`;
 
-  /* Reset conversation history so this routine becomes the new context */
+  /* Reset conversation history — this routine becomes the new context */
   conversationHistory = [
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user",   content: routinePrompt }
   ];
 
-  /* Show a user-visible summary of what was requested */
-  const label = selected.length === 1
-    ? `1 product selected`
-    : `${selected.length} products selected`;
-  appendMessage("user", `Generate my routine — ${label}`);
+  const label = selected.length === 1 ? "1 product" : `${selected.length} products`;
+  appendMessage("user", `Generate my routine — ${label} selected`);
 
   setLoading(true);
   const thinkingBubble = appendMessage("ai", "Building your personalised routine…");
@@ -239,21 +326,23 @@ async function generateRoutine() {
     const response = await fetch(CLOUDFLARE_WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: conversationHistory })
+      /* Pass webSearch flag so the updated worker picks the right model */
+      body: JSON.stringify({ messages: conversationHistory, webSearch: webSearchEnabled })
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data  = await response.json();
-    const reply = data.choices[0].message.content;
+    const data = await response.json();
+    const { text, citations } = parseApiResponse(data);
 
-    /* Replace the placeholder with the real routine */
-    thinkingBubble.textContent = reply;
+    thinkingBubble.textContent = text;
     thinkingBubble.classList.remove("thinking");
 
-    /* Add assistant reply to history so follow-up questions have context */
-    conversationHistory.push({ role: "assistant", content: reply });
-    routineGenerated = true;
+    /* Show source links if the web search model returned any */
+    appendCitations(citations);
+
+    /* Save the assistant reply so follow-up questions keep context */
+    conversationHistory.push({ role: "assistant", content: text });
 
   } catch (err) {
     thinkingBubble.textContent =
@@ -275,16 +364,14 @@ chatForm.addEventListener("submit", async (e) => {
   const text = userInput.value.trim();
   if (!text) return;
 
-  /* Show user's message */
   appendMessage("user", text);
   userInput.value = "";
 
-  /* If the user hasn't generated a routine yet, start with the base system prompt */
+  /* Initialise history with the system prompt if this is the very first message */
   if (conversationHistory.length === 0) {
     conversationHistory = [{ role: "system", content: SYSTEM_PROMPT }];
   }
 
-  /* Append to conversation history */
   conversationHistory.push({ role: "user", content: text });
 
   setLoading(true);
@@ -295,23 +382,24 @@ chatForm.addEventListener("submit", async (e) => {
     const response = await fetch(CLOUDFLARE_WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: conversationHistory })
+      body: JSON.stringify({ messages: conversationHistory, webSearch: webSearchEnabled })
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data  = await response.json();
-    const reply = data.choices[0].message.content;
+    const data = await response.json();
+    const { text: reply, citations } = parseApiResponse(data);
 
     thinkingBubble.textContent = reply;
     thinkingBubble.classList.remove("thinking");
 
-    /* Save assistant reply so the next question retains full context */
+    appendCitations(citations);
+
     conversationHistory.push({ role: "assistant", content: reply });
 
   } catch (err) {
     thinkingBubble.textContent =
-      "Sorry, I'm having trouble connecting right now. Please try again.";
+      "Sorry, I'm having trouble connecting. Please try again.";
     thinkingBubble.classList.remove("thinking");
     console.error("chatForm error:", err);
   } finally {
@@ -324,29 +412,25 @@ chatForm.addEventListener("submit", async (e) => {
    Event listeners
 ───────────────────────────────────────── */
 
-/* Click on a product card → toggle selection */
+/* Product card click → toggle selection */
 productsContainer.addEventListener("click", (e) => {
   const card = e.target.closest(".product-card");
   if (!card) return;
-  const productId = parseInt(card.dataset.id, 10);
-  toggleSelect(productId);
+  toggleSelect(parseInt(card.dataset.id, 10));
 });
 
-/* Click the × on a chip → remove that product */
+/* Remove chip click → deselect that product */
 selectedProductsList.addEventListener("click", (e) => {
-  const removeBtn = e.target.closest(".remove-chip");
-  if (!removeBtn) return;
-  const productId = parseInt(removeBtn.dataset.id, 10);
-  toggleSelect(productId);
+  const btn = e.target.closest(".remove-chip");
+  if (!btn) return;
+  toggleSelect(parseInt(btn.dataset.id, 10));
 });
 
-/* Clear All button → empty the selection */
+/* Clear All button */
 clearAllBtn.addEventListener("click", () => {
   selectedIds.clear();
   saveToStorage();
   renderSelectedList();
-
-  /* Remove the "selected" class from any visible cards */
   document.querySelectorAll(".product-card.selected").forEach(card => {
     card.classList.remove("selected");
   });
@@ -355,11 +439,40 @@ clearAllBtn.addEventListener("click", () => {
 /* Generate Routine button */
 generateBtn.addEventListener("click", generateRoutine);
 
-/* Category dropdown → filter and display products */
+/* Category dropdown → update currentCategory and re-apply filters */
 categoryFilter.addEventListener("change", (e) => {
-  const category   = e.target.value;
-  const filtered   = allProducts.filter(p => p.category === category);
-  displayProducts(filtered);
+  currentCategory = e.target.value;
+  applyFilters();
+});
+
+/* Product search input → debounced keyword filter.
+   Waits 250 ms after the user stops typing before filtering,
+   so we aren't re-rendering the grid on every keystroke. */
+productSearchInput.addEventListener("input", (e) => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    searchQuery = e.target.value.trim();
+    applyFilters();
+  }, 250);
+});
+
+/* Web Search toggle — switches between gpt-4o and gpt-4o-search-preview */
+webSearchBtn.addEventListener("click", () => {
+  webSearchEnabled = !webSearchEnabled;
+  webSearchBtn.classList.toggle("active", webSearchEnabled);
+  webSearchBtn.title         = webSearchEnabled ? "Web Search: ON"  : "Web Search: OFF";
+  webSearchBtn.ariaPressed   = webSearchEnabled ? "true" : "false";
+});
+
+/* RTL toggle — adds/removes dir="rtl" on <html> to flip the layout */
+rtlToggle.addEventListener("click", () => {
+  const html   = document.documentElement;
+  const isRtl  = html.getAttribute("dir") === "rtl";
+  html.setAttribute("dir", isRtl ? "ltr" : "rtl");
+  rtlToggle.classList.toggle("active", !isRtl);
+  rtlToggle.title = isRtl ? "Switch to RTL layout" : "Switch to LTR layout";
+  /* Update the button label to reflect the current mode */
+  rtlToggle.querySelector("span").textContent = isRtl ? "RTL" : "LTR";
 });
 
 /* ─────────────────────────────────────────
@@ -367,31 +480,31 @@ categoryFilter.addEventListener("change", (e) => {
 ───────────────────────────────────────── */
 
 async function init() {
-  /* Show placeholder while products haven't been loaded yet */
+  /* Show placeholder while products load */
   productsContainer.innerHTML = `
     <div class="placeholder-message">
       <i class="fa-solid fa-layer-group" style="margin-right:8px;color:#e3a535;"></i>
-      Choose a category above to browse products
+      Choose a category or type a keyword to browse products
     </div>
   `;
 
-  /* Load all product data from the JSON file */
   await loadProducts();
 
-  /* Restore any previously saved selections from localStorage */
+  /* Restore saved selections from localStorage */
   loadFromStorage();
   renderSelectedList();
 
-  /* Initialise the conversation with the system prompt */
+  /* Seed the conversation history with the system prompt */
   conversationHistory = [{ role: "system", content: SYSTEM_PROMPT }];
 
-  /* Greet the user */
+  /* Initial greeting */
   appendMessage(
     "ai",
-    "Bonjour! I'm your L'Oréal Beauty Advisor 💄\n\n" +
-    "Browse the product categories above, click cards to build your selection, " +
-    "then hit 'Generate My Routine' for a personalised plan. " +
-    "You can also ask me anything about skincare, haircare, makeup, or fragrance!"
+    "Bonjour! I'm your L'Oréal Beauty Advisor.\n\n" +
+    "Browse the categories or search by keyword, click products to build your selection, " +
+    "then hit 'Generate My Routine' for a personalised plan.\n\n" +
+    "Turn on Web Search (🌐) for up-to-date tips, or just ask me anything about skincare, " +
+    "haircare, makeup, or fragrance!"
   );
 }
 
